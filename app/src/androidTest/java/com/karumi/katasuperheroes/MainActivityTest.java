@@ -27,6 +27,8 @@ import com.karumi.katasuperheroes.model.SuperHeroesRepository;
 import com.karumi.katasuperheroes.ui.view.MainActivity;
 import it.cosenonjaviste.daggermock.DaggerMockRule;
 import java.util.Collections;
+import java.util.LinkedList;
+import java.util.List;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.runner.RunWith;
@@ -36,6 +38,7 @@ import static android.support.test.espresso.Espresso.onView;
 import static android.support.test.espresso.assertion.ViewAssertions.matches;
 import static android.support.test.espresso.matcher.ViewMatchers.isDisplayed;
 import static android.support.test.espresso.matcher.ViewMatchers.withText;
+import static org.hamcrest.Matchers.not;
 import static org.mockito.Mockito.when;
 
 @RunWith(AndroidJUnit4.class) @LargeTest public class MainActivityTest {
@@ -63,6 +66,28 @@ import static org.mockito.Mockito.when;
     startActivity();
 
     onView(withText("¯\\_(ツ)_/¯")).check(matches(isDisplayed()));
+  }
+
+  @Test public void doesNotShowEmptyCaseIfThereAreSuperHeroes() {
+    givenThereAreSomeSuperHeroes(10, false);
+
+    startActivity();
+
+    onView(withText("¯\\_(ツ)_/¯")).check(matches(not(isDisplayed())));
+  }
+
+  private void givenThereAreSomeSuperHeroes(int number, boolean isAvenger) {
+    List<SuperHero> superHeroes = new LinkedList<>();
+    for (int i = 0; i < number; i++) {
+      SuperHero hero = new SuperHero(
+          "Paco",
+          "https://i.annihil.us/u/prod/marvel/i/mg/9/b0/537bc2375dfb9.jpg",
+          isAvenger,
+          "Paco The Superhero description"
+      );
+      superHeroes.add(hero);
+    }
+    when(repository.getAll()).thenReturn(superHeroes);
   }
 
   private void givenThereAreNoSuperHeroes() {
