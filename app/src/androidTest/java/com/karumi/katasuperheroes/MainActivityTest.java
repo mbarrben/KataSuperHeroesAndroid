@@ -17,13 +17,17 @@
 package com.karumi.katasuperheroes;
 
 import android.support.test.InstrumentationRegistry;
+import android.support.test.espresso.NoMatchingViewException;
 import android.support.test.espresso.intent.rule.IntentsTestRule;
+import android.support.test.espresso.matcher.ViewMatchers;
 import android.support.test.runner.AndroidJUnit4;
 import android.test.suitebuilder.annotation.LargeTest;
+import android.view.View;
 import com.karumi.katasuperheroes.di.MainComponent;
 import com.karumi.katasuperheroes.di.MainModule;
 import com.karumi.katasuperheroes.model.SuperHero;
 import com.karumi.katasuperheroes.model.SuperHeroesRepository;
+import com.karumi.katasuperheroes.recyclerview.RecyclerViewInteraction;
 import com.karumi.katasuperheroes.ui.view.MainActivity;
 import it.cosenonjaviste.daggermock.DaggerMockRule;
 import java.util.Collections;
@@ -36,15 +40,19 @@ import org.mockito.Mock;
 
 import static android.support.test.espresso.Espresso.onView;
 import static android.support.test.espresso.assertion.ViewAssertions.matches;
+import static android.support.test.espresso.matcher.ViewMatchers.hasDescendant;
 import static android.support.test.espresso.matcher.ViewMatchers.isDisplayed;
+import static android.support.test.espresso.matcher.ViewMatchers.withEffectiveVisibility;
 import static android.support.test.espresso.matcher.ViewMatchers.withId;
 import static android.support.test.espresso.matcher.ViewMatchers.withText;
 import static com.karumi.katasuperheroes.matchers.RecyclerViewItemsCountMatcher.recyclerViewHasItemCount;
+import static org.hamcrest.Matchers.allOf;
 import static org.hamcrest.Matchers.not;
 import static org.mockito.Mockito.when;
 
 @RunWith(AndroidJUnit4.class) @LargeTest public class MainActivityTest {
 
+  public static final int ANY_NUMBER_OF_SUPER_HEROES = 10;
   @Rule public DaggerMockRule<MainComponent> daggerRule =
       new DaggerMockRule<>(MainComponent.class, new MainModule()).set(
           new DaggerMockRule.ComponentSetter<MainComponent>() {
@@ -71,7 +79,7 @@ import static org.mockito.Mockito.when;
   }
 
   @Test public void doesNotShowEmptyCaseIfThereAreSuperHeroes() {
-    givenThereAreSomeSuperHeroes(10, false);
+    givenThereAreSomeSuperHeroes(ANY_NUMBER_OF_SUPER_HEROES);
 
     startActivity();
 
@@ -79,25 +87,88 @@ import static org.mockito.Mockito.when;
   }
 
   @Test public void showsTheNumberOfSuperHeroesWhenThereAreNumberSuperHeroes() {
-    givenThereAreSomeSuperHeroes(10, false);
+    givenThereAreSomeSuperHeroes(ANY_NUMBER_OF_SUPER_HEROES);
 
     startActivity();
 
     onView(withId(R.id.recycler_view)).check(matches(recyclerViewHasItemCount(10)));
   }
 
-  private void givenThereAreSomeSuperHeroes(int number, boolean isAvenger) {
+  @Test public void showsSuperHeroesNameIfThereAreSuperHeroes() {
+    List<SuperHero> superHeroes = givenThereAreSomeSuperHeroes(ANY_NUMBER_OF_SUPER_HEROES);
+
+    startActivity();
+
+    RecyclerViewInteraction.<SuperHero>onRecyclerView(withId(R.id.recycler_view))
+        .withItems(superHeroes)
+        .check(new RecyclerViewInteraction.ItemViewAssertion<SuperHero>() {
+          @Override public void check(SuperHero superHero, View view, NoMatchingViewException e) {
+            matches(
+                hasDescendant(
+                    withText(superHero.getName())
+                )
+            ).check(view, e);
+          }
+        });
+  }
+
+  @Test public void showsAvengersBadgeIfASuperHeroIsPartOfTheAvengersTeam() {
+    List<SuperHero> superHeroes = givenThereAreSomeAvengers(ANY_NUMBER_OF_SUPER_HEROES);
+
+    startActivity();
+
+    RecyclerViewInteraction.<SuperHero>onRecyclerView(withId(R.id.recycler_view))
+        .withItems(superHeroes)
+        .check(new RecyclerViewInteraction.ItemViewAssertion<SuperHero>() {
+          @Override public void check(SuperHero superHero, View view, NoMatchingViewException e) {
+            matches(hasDescendant(
+                allOf(
+                    withId(R.id.iv_avengers_badge),
+                    withEffectiveVisibility(ViewMatchers.Visibility.VISIBLE))
+                )
+            ).check(view, e);
+          }
+        });
+  }
+
+  private List<SuperHero> givenThereAreSomeSuperHeroes(int number) {
     List<SuperHero> superHeroes = new LinkedList<>();
     for (int i = 0; i < number; i++) {
+      String name = "SuperHero - " + i;
       SuperHero hero = new SuperHero(
-          "Paco",
+          name,
           "https://i.annihil.us/u/prod/marvel/i/mg/9/b0/537bc2375dfb9.jpg",
-          isAvenger,
-          "Paco The Superhero description"
+          false,
+          "SuperHero description - " + i
       );
       superHeroes.add(hero);
+      when(repository.getByName(name)).thenReturn(hero);
     }
     when(repository.getAll()).thenReturn(superHeroes);
+
+    return superHeroes;
+  }
+
+  private List<SuperHero> givenThereAreSomeAvengers(int number) {
+    List<SuperHero> superHeroes = new LinkedList<>();
+    for (int i = 0; i < number; i++) {
+      String name = "SuperHero - " + i;
+      SuperHero hero = new SuperHero(
+          name,
+          "https://i.annihil.us/u/prod/marvel/i/mg/9/b0/537bc2375dfb9.jpg",
+          true,
+          "SuperHero description - " + i
+      );
+      superHeroes.add(hero);
+      when(repository.getByName(name)).thenReturn(hero);
+    }
+    when(repository.getAll()).thenReturn(superHeroes);
+
+    return superHeroes;
+  }
+
+  private boolean isEven(int i) {
+    return i % 2 == 0;
   }
 
   private void givenThereAreNoSuperHeroes() {
